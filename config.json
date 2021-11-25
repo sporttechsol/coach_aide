@@ -1,0 +1,16 @@
+{
+  "mongo": {
+    "host": "localhost",
+    "port": 27017
+  },
+  "team": {
+      "name": "jokers",
+      "bot_token": "1952236852:AAGEqbIvLk1LWHKFJ3pJGsbCkcFpYQkCQc8",
+      "general_trainer_key": "2",
+      "team_member_key": "1",
+      "timezone": "EEST"
+    },
+  "db": {
+    "conn_string": "postgresql://postgres:postgres@localhost/jokers"
+  }
+}

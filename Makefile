@@ -1,20 +1,30 @@
-.PHONY: help venv test report clean prepare firmware
+.PHONY: clean-build clean-pyc venv isort flake8 black test
 
-help:
-	@echo "  venv        => to create a virtualenv"
+clean-build:
+	@rm -fr build/
+	@rm -fr dist/
+	@rm -fr .eggs/
+	@find . -name '*.egg-info' -exec rm -fr {} +
+	@find . -name '*.egg' -exec rm -f {} +
+
+clean-pyc:
+	@find . -name '*.pyc' -exec rm -f {} +
+	@find . -name '*.pyo' -exec rm -f {} +
+	@find . -name '*~' -exec rm -f {} +
+	@find . -name '__pycache__' -exec rm -fr {} +
 
 venv:
 	@python3 -m venv venv
 	@venv/bin/pip install -U -r requirements.txt
 
 isort:
-	isort bot tests
+	isort app tests alembic
 
 flake8:
-	flake8 bot tests
+	flake8 app tests alembic
 
 black:
-	black bot tests
+	black app tests alembic
 
 test:
 	PYTHONPATH=. env `(cat .env | xargs)` venv/bin/python -m pytest -vs tests

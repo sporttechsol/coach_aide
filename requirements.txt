@@ -1,2 +1,9 @@
 aiogram==2.14.3
 pytest==6.2.5
+pymongo==3.12.0
+motor==2.5.1
+arrow==1.1.1
+aioschedule==0.5.2
+alembic==1.7.4
+sqlalchemy[asyncio]==1.4
+phonenumbers==8.12.37
