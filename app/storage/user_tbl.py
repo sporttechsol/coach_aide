@@ -88,6 +88,19 @@ async def get_active_trainers() -> list[User]:
     return (
         session.query(User)
         .filter(User.enabled)
-        .filter(User.type == UserType.GENERAL_TRAINER.value)
+        .filter(
+            User.type.in_(
+                UserType.GENERAL_TRAINER.value, UserType.TRAINER.value
+            )
+        )
         .all()
+    )
+
+
+async def get_general_trainer() -> User:
+    return (
+        session.query(User)
+        .filter(User.enabled)
+        .filter(User.type == UserType.GENERAL_TRAINER.value)
+        .first()
     )
