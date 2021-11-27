@@ -1,7 +1,10 @@
 import logging
 
 import asyncio
-from aiogram import Dispatcher
+from aiogram import (
+    Dispatcher,
+    types,
+)
 from aiogram.utils import exceptions
 
 log = logging.getLogger(__name__)
@@ -45,3 +48,13 @@ async def send_message(
         return True
 
     return False
+
+
+async def forward_message(
+    dispatcher: Dispatcher,
+    user_id: int,
+    message: types.Message,
+):
+    await dispatcher.bot.forward_message(
+        user_id, message.chat.id, message.message_id
+    )

@@ -7,3 +7,7 @@ aioschedule==0.5.2
 alembic==1.7.4
 sqlalchemy[asyncio]==1.4
 phonenumbers==8.12.37
+psycopg2-binary==2.9.2
+isort==5.10.1
+flake8==4.0.1
+black==21.11b1

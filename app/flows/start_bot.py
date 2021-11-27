@@ -9,6 +9,7 @@ from aiogram.dispatcher.filters.state import (
     StatesGroup,
 )
 
+from app import utils
 from app.flows.set_pay_day import PayDayState
 from app.flows.set_user_profile import UserProfileState
 from app.settings import APP_CONF
@@ -21,8 +22,13 @@ def init(dp: Dispatcher):
         verify_is_token,
         state=UserTokenState.ask_token,
     )
+    call_trainer = CallTrainer(dp)
     dp.register_message_handler(
-        call_trainer, state=UserTokenState.call_trainer
+        call_trainer.call_trainer, state=UserTokenState.call_trainer
+    )
+    dp.register_message_handler(
+        call_trainer.verify_message,
+        state=UserTokenState.verify_trainer_message,
     )
     dp.register_message_handler(
         check_token,
@@ -34,6 +40,7 @@ class UserTokenState(StatesGroup):
     ask_token = State()
     check_token = State()
     call_trainer = State()
+    verify_trainer_message = State()
 
 
 async def cmd_start(message: types.Message):
@@ -79,17 +86,46 @@ async def verify_is_token(message: types.Message):
         )
     else:
         await message.reply(
-            "Неправельный ввод, воспользуйтесь, пожалуйста клавиатурой"
+            "Неправильный ввод, воспользуйтесь, пожалуйста клавиатурой"
         )
 
 
-async def call_trainer(message: types.Message):
-    await UserTokenState.ask_token.set()
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
-    markup.add("К началу регистрации")
-    await message.reply(
-        "Спасибо, мы передадим сообщение тренеру", reply_markup=markup
-    )
+class CallTrainer:
+    def __init__(self, dp: Dispatcher):
+        self.dp = dp
+        self.message_to_send = None
+
+    async def call_trainer(self, message: types.Message):
+        self.message_to_send = message
+        markup = types.ReplyKeyboardMarkup(
+            resize_keyboard=True, selective=True
+        )
+        markup.add("Да", "Нет")
+        await UserTokenState.verify_trainer_message.set()
+        await message.reply(
+            "Вы собираетесь отправить тренеру это сообщение",
+            reply_markup=markup,
+        )
+
+    async def verify_message(self, message: types.Message):
+        if message.text == "Да":
+            trainer = await user_tbl.get_general_trainer()
+
+            await utils.forward_message(
+                self.dp, trainer.user_id, self.message_to_send
+            )
+            reply = "Спасибо, мы передадим сообщение тренеру"
+        elif message.text == "Нет":
+            reply = "Мы не будем отправлять это сообщение."
+        else:
+            reply = "Ответ не распознан. Воспользуейтесь кнопками."
+
+        await UserTokenState.ask_token.set()
+        markup = types.ReplyKeyboardMarkup(
+            resize_keyboard=True, selective=True
+        )
+        markup.add("К началу регистрации")
+        await message.answer(reply, reply_markup=markup)
 
 
 async def check_token(message: types.Message, state: FSMContext):
