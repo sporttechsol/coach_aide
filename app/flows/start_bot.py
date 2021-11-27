@@ -132,7 +132,7 @@ async def check_token(message: types.Message, state: FSMContext):
     if message.text.find(APP_CONF.team.general_trainer_key) != -1:
         if await user_tbl.get_general_trainer():
             await message.reply(
-                "Главный тренер уже разегистрирован! "
+                "Главный тренер уже зарегистрирован! "
                 "Вы самозванец. Откуда у вас этот код?"
             )
             await state.reset_state()
