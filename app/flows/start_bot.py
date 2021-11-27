@@ -45,10 +45,16 @@ class UserTokenState(StatesGroup):
 
 async def cmd_start(message: types.Message):
     if await user_tbl.get_user_by(message.from_user.id):
-        if await user_tbl.is_enabled(message.from_user.id):
+        if not await user_tbl.is_enabled(message.from_user.id):
             await message.answer("Вы заблокированы")
         else:
-            await message.answer("Вы уже зарегистрированы")
+            markup = types.ReplyKeyboardMarkup(
+                resize_keyboard=True, selective=True
+            )
+            markup.add("Профайл")
+            await message.answer(
+                "Вы уже зарегистрированы", reply_markup=markup
+            )
     else:
         markup = types.ReplyKeyboardMarkup(
             resize_keyboard=True, selective=True
