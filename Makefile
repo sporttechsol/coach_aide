@@ -26,5 +26,7 @@ flake8:
 black:
 	black app tests alembic
 
+fix: isort black flake8
+
 test:
 	PYTHONPATH=. env `(cat .env | xargs)` venv/bin/python -m pytest -vs tests
