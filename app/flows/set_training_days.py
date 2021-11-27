@@ -162,9 +162,8 @@ async def check_data(message: types.Message, state: FSMContext):
         markup = types.ReplyKeyboardMarkup(
             resize_keyboard=True, selective=True
         )
-        markup.add(
-            "Список Игроков",
-        )
+        markup.add("Профайл")
+        markup.add("Список игроков")
         await message.answer(
             "Отлично. Спасибо за настройку. Теперь я буду присылать "
             "вам список тех, кто придёт на тренировку, "

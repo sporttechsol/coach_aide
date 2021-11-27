@@ -12,6 +12,7 @@ from aiogram.dispatcher.filters.state import (
 from arrow import ParserError
 
 from app.storage import user_tbl
+from app.storage.user_tbl import UserType
 
 import phonenumbers
 from phonenumbers import NumberParseException
@@ -161,6 +162,10 @@ async def check_data(message: types.Message, state: FSMContext):
         )
         markup.add("Профайл")
 
+        user = await user_tbl.get_user_by(message.from_user.id)
+        if user and UserType(user.type) == UserType.GENERAL_TRAINER:
+            markup.add("Список игроков")
+
         if message.text == "Да":
             await user_tbl.create_or_update_team_player(
                 user_id=message.from_user.id,
@@ -170,7 +175,7 @@ async def check_data(message: types.Message, state: FSMContext):
                 birthday=arrow.get(data["birthday"], "DD.MM.YYYY").date(),
             )
             await state.reset_state()
-            if await user_tbl.get_user_by(message.from_user.id):
+            if user:
                 await message.answer(
                     "Профайл изменён. Спасибо.", reply_markup=markup
                 )
@@ -238,26 +243,32 @@ async def check_data(message: types.Message, state: FSMContext):
 
 async def open_profile(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        user = await user_tbl.get_user_by(message.from_user.id)
-        birthday = arrow.get(user.birthday).format("DD.MM.YYYY")
-        data["firstname"] = user.first_name
-        data["lastname"] = user.last_name
-        data["phone"] = user.phone
-        data["birthday"] = birthday
-        await UserProfileState.check_data.set()
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add(
-            "Нет",
-            "Исправить Имя",
-            "Исправить Фамилию",
-            "Исправить номер телефона",
-            "Исправить дату рождения",
-        )
-        await message.answer(
-            f"Вы {user.first_name} {user.last_name}. Ваш номер телефон: "
-            f"{user.phone}. Вы родились {birthday}. "
-            "Хотите что-нибудь поменять?",
-            reply_markup=markup,
-        )
+        if await user_tbl.is_enabled(message.from_user.id):
+            user = await user_tbl.get_user_by(message.from_user.id)
+            birthday = arrow.get(user.birthday).format("DD.MM.YYYY")
+            data["firstname"] = user.first_name
+            data["lastname"] = user.last_name
+            data["phone"] = user.phone
+            data["birthday"] = birthday
+            await UserProfileState.check_data.set()
+            markup = types.ReplyKeyboardMarkup(
+                resize_keyboard=True, selective=True
+            )
+            markup.add(
+                "Нет",
+                "Исправить Имя",
+                "Исправить Фамилию",
+                "Исправить номер телефона",
+                "Исправить дату рождения",
+            )
+            await message.answer(
+                f"Вы {user.first_name} {user.last_name}. Ваш номер телефон: "
+                f"{user.phone}. Вы родились {birthday}. "
+                "Хотите что-нибудь поменять?",
+                reply_markup=markup,
+            )
+        else:
+            await message.answer(
+                "Вас заблокировали. Свяжитесь с тренером",
+                reply_markup=types.ReplyKeyboardRemove(),
+            )

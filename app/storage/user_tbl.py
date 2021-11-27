@@ -36,6 +36,14 @@ async def create_or_update_team_player(
         )
 
 
+async def disable_users(user_ids: list[int]):
+    for user_id in user_ids:
+        user = await get_user_by(user_id)
+        user.enabled = False
+
+    session.commit()
+
+
 async def create_general_trainer(
     user_id: int, first_name: str, last_name: str, phone: str, birthday: date
 ):
@@ -96,7 +104,7 @@ async def is_enabled(user_id: int) -> bool:
         .filter(User.user_id == user_id)
         .filter(User.enabled)
         .first()
-        is None
+        is not None
     )
 
 
