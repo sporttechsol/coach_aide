@@ -13,6 +13,7 @@ from app.storage.answer_tbl import AnswerValue
 from app.storage.models import (
     Answer,
     Notification,
+    User,
 )
 from app.storage.notification_tbl import NotificationType
 
@@ -31,13 +32,13 @@ async def do_send_message(dispatcher: Dispatcher):
             event_type = NotificationType.POLL_AFTER_TRAINING
         else:
             raise ValueError(f"Wrong event_type[{next_event_type}]")
-
         players_answers = await answer_tbl.get_by(
             event_type, next_event.event_at_ts
         )
         try:
+            team_players = await user_tbl.get_active_team_players()
+            msg = _gen_message(next_event, players_answers, team_players)
             for trainer in trainers:
-                msg = _gen_message(next_event, players_answers)
                 if await utils.send_message(
                     dispatcher,
                     trainer.user_id,
@@ -51,32 +52,55 @@ async def do_send_message(dispatcher: Dispatcher):
 
 
 def _gen_message(
-    next_notification: Notification, player_answers: list[Answer]
+    next_notification: Notification,
+    player_answers: list[Answer],
+    team_players: list[User],
 ):
     event_type = NotificationType(next_notification.type)
-    players = list(
-        map(
-            lambda x: f"{x.first_name} {x.last_name}\n",
+
+    def users_by_answer(answer: AnswerValue) -> str:
+        players = list(
             map(
-                lambda x: x.user,
-                filter(
-                    lambda x: AnswerValue(x.value) == AnswerValue.YES,
-                    player_answers,
+                lambda x: f"{x.first_name} {x.last_name}\n",
+                map(
+                    lambda x: x.user,
+                    filter(
+                        lambda x: AnswerValue(x.value) == answer,
+                        player_answers,
+                    ),
                 ),
-            ),
+            )
+        )
+        return "".join(players) or "Никто\n"
+
+    user_ids_with_answers = set(map(lambda r: r.user_id, player_answers))
+    no_answer = "".join(
+        list(
+            map(
+                lambda x: f"{x.first_name} {x.last_name}\n",
+                filter(
+                    lambda x: x.user_id not in user_ids_with_answers,
+                    team_players,
+                ),
+            )
         )
     )
+    if not no_answer:
+        no_answer = "Никто"
 
     if event_type is NotificationType.REPORT_BEFORE_TRAINING:
-        if len(players) == 0:
-            message = "Сегодня на тренировку никто не придёт."
-        else:
-            message = f"Сегодня на тренировку собираются:\n {''.join(players)}"
+        message = (
+            f"Сегодня на тренировку собираются:\n{users_by_answer(AnswerValue.YES)}"
+            f"\nСомневаются:\n{users_by_answer(AnswerValue.MAYBE)}"
+            f"\nНе придут:\n{users_by_answer(AnswerValue.NO)}"
+            f"\nНе ответили:\n" + no_answer
+        )
     elif event_type is NotificationType.REPORT_AFTER_TRAINING:
-        if len(players) == 0:
-            message = "Сегодня на тренировку никто не ходил."
-        else:
-            message = f"Сегодня на тренировке были:\n {''.join(players)}"
+        message = (
+            f"Сегодня на тренировке были:\n{users_by_answer(AnswerValue.YES)}"
+            f"\nНе были:\n{users_by_answer(AnswerValue.NO)}"
+            f"\nНе ответили:\n{no_answer}"
+        )
     elif event_type is NotificationType.PAYDAY_QUESTION:
         message = "Оплатили. НИКТО!"
     else:

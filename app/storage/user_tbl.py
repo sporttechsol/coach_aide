@@ -115,7 +115,7 @@ async def get_active_trainers() -> list[User]:
         .filter(User.enabled)
         .filter(
             User.type.in_(
-                UserType.GENERAL_TRAINER.value, UserType.TRAINER.value
+                [UserType.GENERAL_TRAINER.value, UserType.TRAINER.value]
             )
         )
         .all()

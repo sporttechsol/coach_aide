@@ -34,7 +34,7 @@ bot = Bot(token=APP_CONF.team.bot_token)
 # )
 storage = MemoryStorage()
 dp = Dispatcher(bot=bot, storage=storage)
-dp.middleware.setup(LoggingMiddleware(logger=log))
+# dp.middleware.setup(LoggingMiddleware(logger=log))
 loop = asyncio.get_event_loop()
 
 
