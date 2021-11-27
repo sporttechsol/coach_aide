@@ -1,6 +1,8 @@
 from datetime import date
 from enum import Enum
 
+import arrow
+
 from app.storage import session
 from app.storage.models import User
 
@@ -11,17 +13,27 @@ class UserType(Enum):
     TRAINER = "TRAINER"
 
 
-async def create_team_player(
+async def create_or_update_team_player(
     user_id: int, first_name: str, last_name: str, phone: str, birthday: date
 ):
-    await _create_user(
-        UserType.TEAM_PLAYER.value,
-        user_id,
-        first_name,
-        last_name,
-        phone,
-        birthday,
-    )
+    user = await get_user_by(user_id)
+    if user:
+        await _update_user(
+            user,
+            first_name,
+            last_name,
+            phone,
+            birthday,
+        )
+    else:
+        await _create_user(
+            UserType.TEAM_PLAYER.value,
+            user_id,
+            first_name,
+            last_name,
+            phone,
+            birthday,
+        )
 
 
 async def create_general_trainer(
@@ -59,10 +71,23 @@ async def _create_user(
     session.commit()
 
 
-async def is_registered(user_id: int) -> bool:
-    return (
-        session.query(User).filter(User.user_id == user_id).first() is not None
-    )
+async def _update_user(
+    user: User,
+    first_name: str,
+    last_name: str,
+    phone: str,
+    birthday: date,
+):
+    user.first_name = first_name
+    user.last_name = last_name
+    user.phone = phone
+    user.birthday = birthday
+    user.updated_at = arrow.utcnow().date()
+    session.commit()
+
+
+async def get_user_by(user_id: int) -> User:
+    return session.query(User).filter(User.user_id == user_id).first()
 
 
 async def is_enabled(user_id: int) -> bool:

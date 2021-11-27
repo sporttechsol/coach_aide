@@ -44,7 +44,7 @@ class UserTokenState(StatesGroup):
 
 
 async def cmd_start(message: types.Message):
-    if await user_tbl.is_registered(message.from_user.id):
+    if await user_tbl.get_user_by(message.from_user.id):
         if await user_tbl.is_enabled(message.from_user.id):
             await message.answer("Вы заблокированы")
         else:
@@ -130,31 +130,41 @@ class CallTrainer:
 
 async def check_token(message: types.Message, state: FSMContext):
     if message.text.find(APP_CONF.team.general_trainer_key) != -1:
-        await user_tbl.create_general_trainer(
-            user_id=message.from_user.id,
-            first_name="Василий",
-            last_name="Сивохоп",
-            phone="+380633416762",
-            birthday=arrow.now().date(),
-        )
-        await message.reply(
-            "Рады вашей регистрации , Василий Сивохоп. "
-            "Нужно сделать настройку расписания. "
-            "Так же следующим сообщением придёт код регистрации, перешлите "
-            "его игрокам, чтобы они смогли зарегистрирооваться"
-        )
-        await message.answer(
-            f"Код регистрации для игроков: {APP_CONF.team.team_member_key}. "
-        )
-        await state.reset_state()
-        await PayDayState.set_pay_day.set()
-        await message.answer(
-            "В какой день месяца напоминать об оплате? "
-            "Введите число от 1 до 31. "
-            "Если в месяце меньше дней, "
-            "то оповещение будет в последний день месяца"
-        )
-
+        if await user_tbl.get_general_trainer():
+            await message.reply(
+                "Главный тренер уже зарегистрирован! "
+                "Вы самозванец. Откуда у вас этот код?"
+            )
+            await state.reset_state()
+        else:
+            first_name = APP_CONF.team.general_trainer_first_name
+            last_name = APP_CONF.team.general_trainer_last_name
+            await user_tbl.create_general_trainer(
+                user_id=message.from_user.id,
+                first_name=first_name,
+                last_name=last_name,
+                phone=APP_CONF.team.general_trainer_mobile_phone,
+                birthday=arrow.get(
+                    APP_CONF.team.general_trainer_birthday, "DD.MM.YYYY"
+                ).date(),
+            )
+            await message.reply(
+                f"Рады вашей регистрации , {first_name} {last_name}. "
+                "Нужно сделать настройку расписания. "
+                "Так же следующим сообщением придёт код регистрации, "
+                "перешлите его игрокам, чтобы они смогли зарегистрирооваться"
+            )
+            await message.answer(
+                f"Код регистрации для игроков: {APP_CONF.team.team_member_key}. "
+            )
+            await state.reset_state()
+            await PayDayState.set_pay_day.set()
+            await message.answer(
+                "В какой день месяца напоминать об оплате? "
+                "Введите число от 1 до 31. "
+                "Если в месяце меньше дней, "
+                "то оповещение будет в последний день месяца"
+            )
     elif message.text.find(APP_CONF.team.team_member_key) != -1:
         await UserProfileState.set_first_name.set()
         await message.reply("Спасибо. Регистрационный код верный")
