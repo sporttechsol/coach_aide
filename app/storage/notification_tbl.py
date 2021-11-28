@@ -1,6 +1,7 @@
 from enum import Enum
 
 import arrow
+from sqlalchemy import false
 
 from app.settings import APP_CONF
 from app.storage import (
@@ -138,7 +139,9 @@ async def create_new_payday_events():
 
 
 async def get_last_future_by(schedule_id: str) -> Notification:
-    now_with_tz = arrow.utcnow().to(APP_CONF.team.timezone).datetime
+    now_with_tz = (
+        arrow.utcnow().to(APP_CONF.team.timezone).datetime.replace(tzinfo=None)
+    )
     return (
         session.query(Notification)
         .filter(Notification.schedule_id == schedule_id)
@@ -191,6 +194,27 @@ async def get_next_for_trainers() -> Notification:
         )
         .order_by(Notification.notify_at.desc())
         .first()
+    )
+
+
+async def get_executed_polls_by(
+    start_date: int, end_date: int
+) -> list[Notification]:
+    return (
+        session.query(Notification)
+        .filter(
+            Notification.type.in_(
+                (
+                    NotificationType.POLL_BEFORE_TRAINING.value,
+                    NotificationType.POLL_AFTER_TRAINING.value,
+                    NotificationType.PAYDAY_QUESTION.value,
+                )
+            )
+        )
+        .filter(Notification.event_at_ts >= start_date)
+        .filter(Notification.event_at_ts <= end_date)
+        .filter(Notification.enabled == false())
+        .all()
     )
 
 

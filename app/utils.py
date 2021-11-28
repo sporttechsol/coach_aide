@@ -20,11 +20,13 @@ async def send_message(
     text: str,
     keyboard=None,
     disable_notification: bool = False,
+    parse_mode: str = None,
 ) -> bool:
     try:
         await dispatcher.bot.send_message(
             user_id,
             text,
+            parse_mode=parse_mode,
             disable_notification=disable_notification,
             reply_markup=keyboard,
         )

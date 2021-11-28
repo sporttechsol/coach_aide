@@ -1,7 +1,7 @@
-import asyncio
 import logging.config
 
 import aioschedule as schedule
+import asyncio
 from aiogram import (
     Bot,
     Dispatcher,
@@ -17,13 +17,11 @@ from app.flows import (
     set_training_days,
     set_user_profile,
     start_bot,
+    team_statistic,
 )
-from app.settings import (
-    APP_CONF,
-)
+from app.settings import APP_CONF
 
-# logging.config.fileConfig(LOGGER_CONF_PATH)
-logging.basicConfig(level="DEBUG")
+logging.basicConfig(level="INFO")
 bot = Bot(token=APP_CONF.team.bot_token)
 # storage = MongoStorage(
 #     host=APP_CONF.mongo.host,
@@ -42,11 +40,14 @@ async def shutdown(dispatcher: Dispatcher):
 
 async def startup(dispatcher: Dispatcher):
     async def scheduler():
-        schedule.every(15).seconds.do(
+        schedule.every(60).seconds.do(
             notify_players.do_send_message, dispatcher
         )
-        schedule.every(20).seconds.do(
+        schedule.every(80).seconds.do(
             notify_trainers.do_send_message, dispatcher
+        )
+        schedule.every().day.at("12:30").do(
+            team_statistic.do_send_message, dispatcher
         )
         while True:
             await schedule.run_pending()
