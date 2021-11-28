@@ -5,10 +5,10 @@
   },
   "team": {
       "name": "jokers",
-      "bot_token": "1952236852:AAHAZWmOASAqpgRHHjWNV0_vvaFAAbir4ck",
+      "bot_token": "<INSERT_TOKEN_HERE>",
       "general_trainer_key": "2",
       "team_member_key": "1",
-      "timezone": "EEST",
+      "timezone": "Europe/Kiev",
       "general_trainer_first_name": "Василий",
       "general_trainer_last_name": "Сивохоп",
       "general_trainer_mobile_phone": "+380633416762",

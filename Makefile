@@ -28,5 +28,7 @@ black:
 
 fix: isort black flake8
 
+clean: clean-build clean-pyc
+
 test:
 	PYTHONPATH=. env `(cat .env | xargs)` venv/bin/python -m pytest -vs tests

@@ -167,7 +167,7 @@ async def check_data(message: types.Message, state: FSMContext):
             markup.add("Список игроков")
 
         if message.text == "Да":
-            await user_tbl.create_or_update_team_player(
+            is_updated = await user_tbl.create_or_update_team_player(
                 user_id=message.from_user.id,
                 first_name=data["firstname"],
                 last_name=data["lastname"],
@@ -175,7 +175,7 @@ async def check_data(message: types.Message, state: FSMContext):
                 birthday=arrow.get(data["birthday"], "DD.MM.YYYY").date(),
             )
             await state.reset_state()
-            if user:
+            if is_updated:
                 await message.answer(
                     "Профайл изменён. Спасибо.", reply_markup=markup
                 )

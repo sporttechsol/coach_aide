@@ -35,6 +35,8 @@ async def create_or_update_team_player(
             birthday,
         )
 
+    return user is not None
+
 
 async def disable_users(user_ids: list[int]):
     for user_id in user_ids:
