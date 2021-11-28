@@ -11,9 +11,9 @@ from app.storage.models import Notification
 from app.storage.schedule_dbl import ScheduleType
 
 POLL_BEFORE_SHIFT = -3
-POLL_AFTER_SHIFT = 3
+POLL_AFTER_SHIFT = 1
 REPORT_BEFORE_SHIFT = -1
-REPORT_AFTER_SHIFT = 1
+REPORT_AFTER_SHIFT = 3
 
 
 class NotificationType(Enum):
