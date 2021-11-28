@@ -6,7 +6,7 @@ from aiogram import (
     Bot,
     Dispatcher,
 )
-from aiogram.contrib.fsm_storage.mongo import MongoStorage
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.utils import executor
 
 from app.flows import (
@@ -25,11 +25,12 @@ from app.settings import (
 # logging.config.fileConfig(LOGGER_CONF_PATH)
 logging.basicConfig(level="DEBUG")
 bot = Bot(token=APP_CONF.team.bot_token)
-storage = MongoStorage(
-    host=APP_CONF.mongo.host,
-    port=APP_CONF.mongo.port,
-    db_name=APP_CONF.team.name,
-)
+# storage = MongoStorage(
+#     host=APP_CONF.mongo.host,
+#     port=APP_CONF.mongo.port,
+#     db_name=APP_CONF.team.name,
+# )
+storage = MemoryStorage()
 dp = Dispatcher(bot=bot, storage=storage)
 loop = asyncio.get_event_loop()
 

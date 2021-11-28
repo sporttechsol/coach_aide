@@ -32,7 +32,7 @@ async def do_send_message(dispatcher: Dispatcher):
             event_type = NotificationType.POLL_AFTER_TRAINING
         else:
             raise ValueError(f"Wrong event_type[{next_event_type}]")
-        players_answers = await answer_tbl.get_by(
+        players_answers = await answer_tbl.get_last_answers_by(
             event_type, next_event.event_at_ts
         )
         try:
