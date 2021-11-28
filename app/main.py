@@ -46,7 +46,7 @@ async def startup(dispatcher: Dispatcher):
         schedule.every(80).seconds.do(
             notify_trainers.do_send_message, dispatcher
         )
-        schedule.every().day.at("12:30").do(
+        schedule.every().day.at("15:50").do(
             team_statistic.do_send_message, dispatcher
         )
         while True:

@@ -10,7 +10,10 @@ from aiogram.types import (
     InlineKeyboardMarkup,
 )
 
-from app import utils
+from app import (
+    text,
+    utils,
+)
 from app.storage import (
     answer_tbl,
     notification_tbl,
@@ -49,16 +52,12 @@ async def callback_players_handler(call: CallbackQuery):
     )
 
     if value.endswith(AnswerValue.YES.value):
-        await call.answer(text="Отлично. Рады это слышать", show_alert=True)
+        await call.answer(text="Great. Glad to hear it.")
     elif value.endswith(AnswerValue.NO.value):
-        await call.answer(
-            text="Очень жаль. Но, думаю у тебя всё получится",
-            show_alert=True,
-        )
+        await call.answer(text="That's too bad. But I think you'll make it.")
     elif value.endswith(AnswerValue.MAYBE.value):
         await call.answer(
-            text="Спасибо. Надеемся на позитивный ответ позже.",
-            show_alert=True,
+            text="Thank you. We hope for a positive response later.",
         )
     else:
         raise ValueError(f"Wrong answer_value[{value}]")
@@ -78,6 +77,7 @@ async def do_send_message(dispatcher: Dispatcher):
                     team_player.user_id,
                     msg,
                     kbr,
+                    parse_mode="Markdown",
                 ):
                     count += 1
                 await asyncio.sleep(0.05)
@@ -93,10 +93,10 @@ def _gen_keyboard_and_message(next_event: Notification):
     )
     answer_id = f"{event_type.name}:{next_event.id}:{next_event.event_at_ts}"
     if event_type is NotificationType.POLL_BEFORE_TRAINING:
-        message = f"Тренировка ({training_date}) через 6 часов. Придёшь?"
+        message = f"There's (*{training_date}*) training today. Will you come?"
         keyboard = _gen_keyboard(answer_id)
     elif event_type is NotificationType.POLL_AFTER_TRAINING:
-        message = f"Был сегодня на тренировке ({training_date})?"
+        message = f"Been to training today (*{training_date}*)?"
         keyboard = _gen_keyboard(answer_id, with_maybe=False)
     elif event_type is NotificationType.PAYDAY_QUESTION:
         message = next_event.user_text
@@ -110,16 +110,16 @@ def _gen_keyboard_and_message(next_event: Notification):
 def _gen_keyboard(answer_id: str, with_maybe: bool = True):
     keyboard = InlineKeyboardMarkup(row_width=2)
     yes_btn = InlineKeyboardButton(
-        "Да", callback_data=f"{answer_id}:{AnswerValue.YES.value}"
+        text.YES, callback_data=f"{answer_id}:{AnswerValue.YES.value}"
     )
     no_btn = InlineKeyboardButton(
-        "Нет", callback_data=f"{answer_id}:{AnswerValue.NO.value}"
+        text.NO, callback_data=f"{answer_id}:{AnswerValue.NO.value}"
     )
     keyboard.row(yes_btn, no_btn)
 
     if with_maybe:
         maybe_btn = InlineKeyboardButton(
-            "Не знаю", callback_data=f"{answer_id}:{AnswerValue.MAYBE.value}"
+            text.MAYBE, callback_data=f"{answer_id}:{AnswerValue.MAYBE.value}"
         )
         keyboard.row(maybe_btn)
 

@@ -9,6 +9,10 @@ from aiogram.dispatcher.filters.state import (
     StatesGroup,
 )
 
+from app import (
+    keyboards,
+    text,
+)
 from app.storage import user_tbl
 from app.storage.models import User
 from app.storage.user_tbl import UserType
@@ -22,7 +26,7 @@ class ShowUsersState(StatesGroup):
 
 def init(dp: Dispatcher):
     dp.register_message_handler(
-        show_team_players, Text(equals="Список игроков")
+        show_team_players, Text(equals=text.LIST_OF_PLAYERS)
     )
     dp.register_message_handler(
         select_next_action, state=ShowUsersState.show_users
@@ -54,40 +58,35 @@ async def show_team_players(message: types.Message, state: FSMContext):
                     lambda x: form_string_and_store_data(x[0], x[1]),
                     enumerate(players),
                 )
-                markup = types.ReplyKeyboardMarkup(
-                    resize_keyboard=True, selective=True
-                )
-                markup.add("Заблокировать игроков")
-                markup.add("Назад")
                 await ShowUsersState.show_users.set()
                 await message.answer(
-                    "\n".join(players_as_strings), reply_markup=markup
+                    "\n".join(players_as_strings),
+                    reply_markup=keyboards.SHOW_USERS,
                 )
         else:
-            await message.answer("Пока ещё никто не зарегистрировался")
+            await message.answer("No one has signed up yet")
 
     else:
-        await message.reply("Хорошая попытка, но нет")
+        await message.reply("Nice try, but no. 😂")
 
 
 async def select_next_action(message: types.Message, state: FSMContext):
-    if message.text == "Заблокировать игроков":
+    if message.text == text.BLOCK_PLAYERS:
         await ShowUsersState.select_to_block.set()
         await message.answer(
-            "Пожалуйста, отправьте нам номер игрока которого "
-            "нужно заблокировать. Или несколько номеров через запятую.",
+            "Please, send us the number of the player "
+            "to be blocked. Or several numbers, separated by commas. "
+            "_Example:1,2,3 or just 1_",
             reply_markup=types.ReplyKeyboardRemove(),
+            parse_mode="Markdown",
         )
-    elif message.text == "Назад":
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add("Профайл")
-        markup.add("Список игроков")
+    elif message.text == text.BACK:
         await state.reset_state()
-        await message.answer("Хорошо", reply_markup=markup)
+        await message.answer(
+            "Good. 😊", reply_markup=keyboards.GENERAL_TRAINER_DEFAULT
+        )
     else:
-        await message.answer("Пожалуйста, воспользуйтесь клавиатурой")
+        await message.answer(text.PLEASE_USE_KEYBOARD)
 
 
 async def select_users_to_delete(message: types.Message, state: FSMContext):
@@ -99,47 +98,39 @@ async def select_users_to_delete(message: types.Message, state: FSMContext):
             for index in indexes:
                 user_data = data["showed_users"][index - 1]
                 user_id, first_name, last_name = user_data
-                list_users += f"{first_name} {last_name}\n"
+                list_users += f"*{first_name} {last_name}*\n"
                 data["user_to_delete"].append(user_id)
         await ShowUsersState.check_data.set()
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add("Да")
-        markup.add("Нет")
         await message.answer(
-            f"Список пользователей на удаление:\n\n{list_users}\n Всё верно?",
-            reply_markup=markup,
+            f"List of users to delete:\n\n{list_users}\n All right?",
+            reply_markup=keyboards.YES_OR_NO,
+            parse_mode="Markdown",
         )
     except (ValueError, IndexError):
         await message.reply(
-            "Неправильный ввод. "
-            "Пожалуйста вводите только номер игрока "
-            "или номера через запятую"
+            "Incorrect input. "
+            "Please enter the player number only"
+            "or numbers, separated by commas"
         )
 
 
 async def check_data(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        if message.text == "Да":
+        if message.text == text.YES:
             user_ids = list(map(lambda x: int(x), data["user_to_delete"]))
             await user_tbl.disable_users(user_ids)
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add("Профайл")
-            markup.add("Список игроков")
             await state.reset_state()
             await message.answer(
-                "Пользователи заблокированы", reply_markup=markup
+                "Users blocked 🔨",
+                reply_markup=keyboards.GENERAL_TRAINER_DEFAULT,
             )
-        elif message.text == "Нет":
+        elif message.text == text.NO:
             await ShowUsersState.select_to_block.set()
             await message.answer(
-                "Пожалуйста, отправьте нам номер игрока которого "
-                "нужно заблокировать. Или несколько номеров через запятую."
+                "Please send us the number of the player "
+                "to be blocked. Or several numbers, separated by commas"
             )
             data["user_to_delete"] = []
             data["showed_users"] = []
         else:
-            await message.answer("Пожалуйста, воспользуйтесь клавиатурой")
+            await message.answer(text.PLEASE_USE_KEYBOARD)

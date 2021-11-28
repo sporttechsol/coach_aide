@@ -9,7 +9,11 @@ from aiogram.dispatcher.filters.state import (
     StatesGroup,
 )
 
-from app import utils
+from app import (
+    keyboards,
+    text,
+    utils,
+)
 from app.flows.set_pay_day import PayDayState
 from app.flows.set_user_profile import UserProfileState
 from app.settings import APP_CONF
@@ -46,54 +50,43 @@ class UserTokenState(StatesGroup):
 async def cmd_start(message: types.Message):
     if await user_tbl.get_user_by(message.from_user.id):
         if not await user_tbl.is_enabled(message.from_user.id):
-            await message.answer("Вы заблокированы")
+            await message.answer(text.YOU_ARE_BLOCKED)
         else:
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add("Профайл")
             await message.answer(
-                "Вы уже зарегистрированы", reply_markup=markup
+                "You are already registered ✔️",
+                reply_markup=keyboards.PLAYER_DEFAULT,
             )
     else:
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add("Да", "Нет")
-
         await UserTokenState.ask_token.set()
         await message.answer(
-            "Привет. У вас есть регистрационный код?", reply_markup=markup
+            "Hi.👋🏼 Do you have a *registration code?*",
+            reply_markup=keyboards.YES_OR_NO,
+            parse_mode="Markdown",
         )
 
 
 async def verify_is_token(message: types.Message):
-    if message.text == "Да":
+    if message.text == text.YES:
         await UserTokenState.check_token.set()
         await message.answer(
-            "Ввведите его пожалуйста, или перешлите сообщение с кодом",
+            "Please, enter it or send a message with the code",
             reply_markup=types.ReplyKeyboardRemove(),
         )
-    elif message.text == "Нет":
+    elif message.text == text.NO:
         await UserTokenState.call_trainer.set()
         await message.answer(
-            "Это значит, что скорее всего вы новичёк, поэтому "
-            "напишите что-нибудь и я передам это главному "
-            "тренеру, а он уже свяжется с вами",
+            "That means you're probably a beginner, so "
+            "write something down and I'll pass it on to the head "
+            "the coach and he'll get back to you",
             reply_markup=types.ReplyKeyboardRemove(),
         )
-    elif message.text == "К началу регистрации":
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add("Да", "Нет")
+    elif message.text == text.TO_THE_START_OF_THE_REGISTRATION:
         await message.answer(
-            "У вас есть регистрационный код?", reply_markup=markup
+            "Do you have a registration code?",
+            reply_markup=keyboards.YES_OR_NO,
         )
     else:
-        await message.reply(
-            "Неправильный ввод, воспользуйтесь, пожалуйста клавиатурой"
-        )
+        await message.reply("Wrong entry, please use the keyboard ⌨️")
 
 
 class CallTrainer:
@@ -103,34 +96,30 @@ class CallTrainer:
 
     async def call_trainer(self, message: types.Message):
         self.message_to_send = message
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add("Да", "Нет")
         await UserTokenState.verify_trainer_message.set()
         await message.reply(
-            "Вы собираетесь отправить тренеру это сообщение",
-            reply_markup=markup,
+            "Shall I send this message to the coach? ⚠️",
+            reply_markup=keyboards.YES_OR_NO,
         )
 
     async def verify_message(self, message: types.Message):
-        if message.text == "Да":
+        if message.text == text.YES:
             trainer = await user_tbl.get_general_trainer()
 
             await utils.forward_message(
                 self.dp, trainer.user_id, self.message_to_send
             )
-            reply = "Спасибо, мы передадим сообщение тренеру"
-        elif message.text == "Нет":
-            reply = "Мы не будем отправлять это сообщение."
+            reply = "Thank you, we will pass the message on to the coach"
+        elif message.text == text.NO:
+            reply = "We will not be sending this message"
         else:
-            reply = "Ответ не распознан. Воспользуейтесь кнопками."
+            reply = text.PLEASE_USE_KEYBOARD
 
         await UserTokenState.ask_token.set()
         markup = types.ReplyKeyboardMarkup(
             resize_keyboard=True, selective=True
         )
-        markup.add("К началу регистрации")
+        markup.add(text.TO_THE_START_OF_THE_REGISTRATION)
         await message.answer(reply, reply_markup=markup)
 
 
@@ -138,8 +127,8 @@ async def check_token(message: types.Message, state: FSMContext):
     if message.text.find(APP_CONF.team.general_trainer_key) != -1:
         if await user_tbl.get_general_trainer():
             await message.reply(
-                "Главный тренер уже зарегистрирован! "
-                "Вы самозванец. Откуда у вас этот код?"
+                "The head coach is already registered! 🙅 "
+                "You are an impostor. How did you get this code?"
             )
             await state.reset_state()
         else:
@@ -155,28 +144,31 @@ async def check_token(message: types.Message, state: FSMContext):
                 ).date(),
             )
             await message.reply(
-                f"Рады вашей регистрации , {first_name} {last_name}. "
-                "Нужно сделать настройку расписания. "
-                "Так же следующим сообщением придёт код регистрации, "
-                "перешлите его игрокам, чтобы они смогли зарегистрирооваться"
+                f"Happy to have you registered, *{first_name} {last_name}*."
+                "Need to do a schedule setup. "
+                "Also, the next message will be the registration code,"
+                "send it to the players so they can register.",
+                parse_mode="Markdown",
             )
             await message.answer(
-                f"Код регистрации для игроков: {APP_CONF.team.team_member_key}. "
+                "Registration code for players: "
+                f"*{APP_CONF.team.team_member_key}*.",
+                parse_mode="Markdown",
             )
             await state.reset_state()
             await PayDayState.set_pay_day.set()
             await message.answer(
-                "В какой день месяца напоминать об оплате? "
-                "Введите число от 1 до 31. "
-                "Если в месяце меньше дней, "
-                "то оповещение будет в последний день месяца"
+                "On what day of the month should I be reminded to pay? "
+                "*Enter a number between 1 and 31*. "
+                "If there are fewer days in the month,"
+                "you will be notified on the last day of the month.",
+                parse_mode="Markdown",
             )
     elif message.text.find(APP_CONF.team.team_member_key) != -1:
         await UserProfileState.set_first_name.set()
-        await message.reply("Спасибо. Регистрационный код верный")
-        await message.answer("Пожалуйста скажите как вас зовут?")
+        await message.reply("Thank you. Registration code is correct 😎")
+        await message.answer("Please tell me your name?")
     else:
         await message.reply(
-            "Не могу прочитать регистрационный код. "
-            "Повторите, пожалуйста, попытку ввода"
+            "Can't read the registration code. 🙇 " "Please try again 🔁"
         )

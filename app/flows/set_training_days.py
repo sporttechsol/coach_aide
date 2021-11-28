@@ -10,20 +10,24 @@ from aiogram.dispatcher.filters.state import (
     StatesGroup,
 )
 
-from app import utils
+from app import (
+    keyboards,
+    text,
+    utils,
+)
 from app.storage import (
     notification_tbl,
     schedule_dbl,
 )
 
 WEEK_DAYS = [
-    "Понедельник",
-    "Вторник",
-    "Среда",
-    "Четверг",
-    "Пятница",
-    "Суббота",
-    "Воскресенье",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
 ]
 
 
@@ -48,11 +52,13 @@ async def set_training_count(message: types.Message, state: FSMContext):
     try:
         training_count = int(message.text)
         if 1 > training_count or training_count > 7:
-            await message.reply("Введите число от 1 до 7")
+            await message.reply(
+                text.ENTER_ONE_ORE_SEVEN, parse_mode="Markdown"
+            )
             return
 
     except ValueError:
-        await message.reply("Введите число от 1 до 7")
+        await message.reply(text.ENTER_ONE_ORE_SEVEN, parse_mode="Markdown")
         return
 
     async with state.proxy() as data:
@@ -60,11 +66,14 @@ async def set_training_count(message: types.Message, state: FSMContext):
         data["trainings"]["count"] = training_count
         await TrainingsDays.set_trainings_time.set()
         await message.reply(
-            f"В неделю будет {data['trainings']['count']} тренировки"
+            f"There will be *{data['trainings']['count']}* training per week",
+            parse_mode="Markdown",
         )
         await message.answer(
-            "Введите по очереди информацию о каждой из тренировок. "
-            "Формат [номер_дня_недели,чч:мм]"
+            "Enter the information about each of the training "
+            "sessions in turn. Format [number_day_week,hh:mm]. "
+            "_Example: 1,13:00_",
+            parse_mode="Markdown",
         )
 
 
@@ -75,16 +84,19 @@ async def set_training_time(message: types.Message, state: FSMContext):
 
         if week_day < 1 or week_day > 7:
             await message.reply(
-                "Неправильный формат дня недели. "
-                "День недели должен быть от 1 и до 7, "
-                "где 1 - это понедельник, а 7 - это воскресенье"
+                "Incorrect format of the day of the week. "
+                "The day of the week should be from *1 to 7*,"
+                "where *1 is Monday and 7 is Sunday*.",
+                parse_mode="Markdown",
             )
             return
 
     except ValueError:
         await message.reply(
-            "Не удаёться прочитать сообщение. "
-            "Пожалуйста, введите его в формате [номер_дня_недели, чч:мм]"
+            "Cannot read the message. "
+            "Please enter it in the format [day_of_week, hh:mm].  "
+            "_Example: 1,13:00_",
+            parse_mode="Markdown",
         )
         return
 
@@ -92,8 +104,9 @@ async def set_training_time(message: types.Message, state: FSMContext):
     training_times = p.findall(training_time)
     if len(training_times) != 1:
         await message.reply(
-            "Не удаётся прочитать время. "
-            "Пожалуйста, введите его в формате [чч:мм]"
+            "Can't read the time. "
+            "Please enter it in [hh:mm] format. _Example: 13:00_",
+            parse_mode="Markdown",
         )
         return
 
@@ -101,8 +114,9 @@ async def set_training_time(message: types.Message, state: FSMContext):
 
     if hours < 0 or hours > 23 or minutes < 0 or minutes > 59:
         await message.reply(
-            "Неправильный формат ввода времени. Часы должны быть от 0 до 23, "
-            "а минуты от 0 до 59. Примеры: 00:00"
+            "Incorrect time entry format. The hours should be *0 to 23*, "
+            "and the minutes are *from 0 to 59*. _Examples: 00:00_",
+            parse_mode="Markdown",
         )
         return
 
@@ -131,24 +145,18 @@ async def set_training_time(message: types.Message, state: FSMContext):
                 trainings_list += (
                     f"{i+1}. {WEEK_DAYS[training['day'] - 1]} в {time}\n"
                 )
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add(
-                "Да",
-                "Нет",
-            )
             await TrainingsDays.check_data.set()
             await message.answer(
-                f"Давайте перепроверим введённые вами данные.\n"
-                f"В неделю будет {training_count} тренировки:\n"
-                f"{trainings_list} Всё верно?",
-                reply_markup=markup,
+                f"Let's double-check the data you entered.\n"
+                f"There will be *{training_count}* training per week:\n"
+                f"*{trainings_list}* Is that correct?",
+                parse_mode="Markdown",
+                reply_markup=keyboards.YES_OR_NO,
             )
 
 
 async def check_data(message: types.Message, state: FSMContext):
-    if message.text == "Да":
+    if message.text == text.YES:
         async with state.proxy() as data:
             for i, training in enumerate(data["trainings"]["list"]):
                 await schedule_dbl.create_training_schedule(
@@ -159,22 +167,17 @@ async def check_data(message: types.Message, state: FSMContext):
                 )
         await notification_tbl.create_new_training_events()
         await state.reset_state()
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add("Профайл")
-        markup.add("Список игроков")
         await message.answer(
-            "Отлично. Спасибо за настройку. Теперь я буду присылать "
-            "вам список тех, кто придёт на тренировку, "
-            "месячный отчёт по посещаемости, "
-            "напоминать про дни рождения игроков, "
-            "а так же отчёт по оплате",
-            reply_markup=markup,
+            "Great. Thank you for the setup. Now I'll be sending "
+            "you a list of who's coming to practice,"
+            "a monthly attendance report,"
+            "remind you of players' birthdays,"
+            "as well as a payment report.",
+            reply_markup=keyboards.GENERAL_TRAINER_DEFAULT,
         )
-    elif message.text == "Нет":
+    elif message.text == text.NO:
         await TrainingsDays.set_training_count.set()
         await message.answer(
-            "Сколько будет тренировок в неделю?",
+            "How many training sessions will there be a week?",
             reply_markup=types.ReplyKeyboardRemove(),
         )

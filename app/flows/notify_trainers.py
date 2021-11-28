@@ -3,7 +3,10 @@ import logging
 import asyncio
 from aiogram import Dispatcher
 
-from app import utils
+from app import (
+    text,
+    utils,
+)
 from app.storage import (
     answer_tbl,
     notification_tbl,
@@ -43,6 +46,7 @@ async def do_send_message(dispatcher: Dispatcher):
                     dispatcher,
                     trainer.user_id,
                     msg,
+                    parse_mode="Markdown",
                 ):
                     count += 1
                 await asyncio.sleep(0.05)
@@ -71,7 +75,7 @@ def _gen_message(
                 ),
             )
         )
-        return "".join(players) or "Никто\n"
+        return "".join(players) or f"{text.NO_ANSWER}\n"
 
     user_ids_with_answers = set(map(lambda r: r.user_id, player_answers))
     no_answer = "".join(
@@ -86,23 +90,23 @@ def _gen_message(
         )
     )
     if not no_answer:
-        no_answer = "Никто"
+        no_answer = text.NO_ANSWER
 
     if event_type is NotificationType.REPORT_BEFORE_TRAINING:
         message = (
-            f"Сегодня на тренировку собираются:\n{users_by_answer(AnswerValue.YES)}"
-            f"\nСомневаются:\n{users_by_answer(AnswerValue.MAYBE)}"
-            f"\nНе придут:\n{users_by_answer(AnswerValue.NO)}"
-            f"\nНе ответили:\n" + no_answer
+            f"*They're going to practice today:*\n{users_by_answer(AnswerValue.YES)}"
+            f"\n*Doubt:*\n{users_by_answer(AnswerValue.MAYBE)}"
+            f"\n*They won't come:*\n{users_by_answer(AnswerValue.NO)}"
+            f"\n*No answer:*\n" + no_answer
         )
     elif event_type is NotificationType.REPORT_AFTER_TRAINING:
         message = (
-            f"Сегодня на тренировке были:\n{users_by_answer(AnswerValue.YES)}"
-            f"\nНе были:\n{users_by_answer(AnswerValue.NO)}"
-            f"\nНе ответили:\n{no_answer}"
+            f"*Today's training was:*\n{users_by_answer(AnswerValue.YES)}"
+            f"\n*They weren't*:\n{users_by_answer(AnswerValue.NO)}"
+            f"\n*No answer:*\n{no_answer}"
         )
     elif event_type is NotificationType.PAYDAY_QUESTION:
-        message = "Оплатили. НИКТО!"
+        message = "Paid. NOBODY!"
     else:
         raise ValueError(f"Wrong event_type[{event_type}]")
 

@@ -11,6 +11,10 @@ from aiogram.dispatcher.filters.state import (
 )
 from arrow import ParserError
 
+from app import (
+    keyboards,
+    text,
+)
 from app.storage import user_tbl
 from app.storage.user_tbl import UserType
 
@@ -39,7 +43,9 @@ def init(dp: Dispatcher):
         check_data,
         state=UserProfileState.check_data,
     )
-    dp.register_message_handler(open_profile, Text(startswith="Профайл"))
+    dp.register_message_handler(
+        open_profile, Text(startswith=text.YOUR_PROFILE)
+    )
 
 
 class UserProfileState(StatesGroup):
@@ -55,18 +61,16 @@ async def set_first_name(message: types.Message, state: FSMContext):
         if "firstname" in data:
             data["firstname"] = message.text.strip()
             await UserProfileState.check_data.set()
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add("Далее")
             await message.reply(
-                "Перепроверьте обновлённые данные", reply_markup=markup
+                "Double-check updated data ✔️", reply_markup=keyboards.NEXT
             )
         else:
             data["firstname"] = message.text.strip()
             await UserProfileState.set_last_name.set()
-            await message.reply(f"Приятно познакомиться, {data['firstname']}")
-            await message.answer("Введите свою фамилию")
+            await message.reply(
+                f"Nice to meet you, {data['firstname']}", parse_mode="Markdown"
+            )
+            await message.answer("Enter your last name")
 
 
 async def set_last_name(message: types.Message, state: FSMContext):
@@ -74,20 +78,19 @@ async def set_last_name(message: types.Message, state: FSMContext):
         if data.get("lastname"):
             data["lastname"] = message.text.strip()
             await UserProfileState.check_data.set()
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add("Далее")
             await message.reply(
-                "Перепроверьте обновлённые данные", reply_markup=markup
+                "Double-check updated data ✔️", reply_markup=keyboards.NEXT
             )
         else:
             data["lastname"] = message.text.strip()
             await UserProfileState.set_mobile.set()
-            await message.reply(f"Отличная фамилия, {data['lastname']}")
+            await message.reply(
+                f"Great last name, *{data['lastname']}*", parse_mode="Markdown"
+            )
             await message.answer(
-                "Введите, свой номер телефона в формате +(код страны)(номер). "
-                "Пример: +380684928465"
+                "Enter, your telephone number 📞 in the format "
+                "+(country code)(number). _Example: +380684928465_",
+                parse_mode="Markdown",
             )
 
 
@@ -100,27 +103,26 @@ async def set_mobile_phone(message: types.Message, state: FSMContext):
             )
         except NumberParseException:
             await message.reply(
-                "Пожалуйста, используйте правильный формат "
-                "+(код страны)(номер). Пример: +380684928465"
+                "Please use the correct format "
+                "+(country code)(number). _Example: +380684928465_",
+                parse_mode="Markdown",
             )
             return
 
         if data.get("phone"):
             data["phone"] = phone
             await UserProfileState.check_data.set()
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add("Далее")
             await message.reply(
-                "Перепроверьте обновлённые данные", reply_markup=markup
+                "Double-check updated data ✔️", reply_markup=keyboards.NEXT
             )
         else:
             data["phone"] = phone
             await UserProfileState.set_birth_day.set()
-            await message.reply(f"Ваш телефонный номер, {data['phone']}")
+            await message.reply(f"Your phone number, {data['phone']}")
             await message.answer(
-                "Введите, дату своего рождения в формате дд.мм.гггг"
+                "Enter your date of birth in the format dd.mm.yyyy. "
+                "_Example: 03.08.2001_",
+                parse_mode="Markdown",
             )
 
 
@@ -132,41 +134,32 @@ async def set_birthday(message: types.Message, state: FSMContext):
             ).format("DD.MM.YYYY")
         except ParserError:
             await message.reply(
-                "Пожалуйста, используйте правильный формат дд.мм.гггг"
+                "Please use the correct format dd.mm.yyyy. "
+                "_Example: 03.08.2001_",
+                parse_mode="Markdown",
             )
             return
 
         await UserProfileState.check_data.set()
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add(
-            "Да",
-            "Исправить Имя",
-            "Исправить Фамилию",
-            "Исправить номер телефона",
-            "Исправить дату рождения",
-        )
         await message.answer(
-            f"И так, давайте перепроверим ваши данные. Вы "
-            f"{data['firstname']} {data['lastname']}. Ваш номер телефон: "
-            f"{data['phone']}. Вы родились {data['birthday']}. Всё верно?",
-            reply_markup=markup,
+            f"So, let's double-check your data. You "
+            f"*{data['firstname']} {data['lastname']}*. Your phone number is "
+            f"*{data['phone']}*. You were born *{data['birthday']}*.\n\n"
+            "*Is this correct?*",
+            reply_markup=keyboards.CHECK_PROFILE_WITH_YES,
+            parse_mode="Markdown",
         )
 
 
 async def check_data(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add("Профайл")
-
         user = await user_tbl.get_user_by(message.from_user.id)
         if user and UserType(user.type) == UserType.GENERAL_TRAINER:
-            markup.add("Список игроков")
+            markup = keyboards.GENERAL_TRAINER_DEFAULT
+        else:
+            markup = keyboards.PLAYER_DEFAULT
 
-        if message.text == "Да":
+        if message.text == text.YES:
             is_updated = await user_tbl.create_or_update_team_player(
                 user_id=message.from_user.id,
                 first_name=data["firstname"],
@@ -177,68 +170,61 @@ async def check_data(message: types.Message, state: FSMContext):
             await state.reset_state()
             if is_updated:
                 await message.answer(
-                    "Профайл изменён. Спасибо.", reply_markup=markup
+                    "Profile changed. Thank you.", reply_markup=markup
                 )
             else:
                 await message.answer(
-                    "Отлично. Спасибо за регистрацию. "
-                    "Теперь я буду присылать тебе "
-                    "напоминания о тренировках, а так же об оплате. "
-                    "И прочую важную информацию. В конце месяца я пришлю "
-                    "тебе статистику твоих посещений.",
+                    "Great. Thank you for registration. 🙏🏻"
+                    "I will now send you"
+                    "training reminders as well as payment reminders. "
+                    "and other important information. At the end of the month,"
+                    " I'll send you your attendance statistics.",
                     reply_markup=markup,
                 )
-        elif message.text == "Нет":
+        elif message.text == text.NO:
             await state.reset_state()
-            await message.reply("Отлично, спасибо.", reply_markup=markup)
-        elif message.text == "Исправить Имя":
+            await message.reply("Great, thank you. 🙏🏻", reply_markup=markup)
+        elif message.text == text.CORRECT_FIRSTNAME:
             await UserProfileState.set_first_name.set()
             await message.answer(
-                "Ввведите правильное имя",
+                "Enter correct first name",
                 reply_markup=types.ReplyKeyboardRemove(),
+                parse_mode="Markdown",
             )
-        elif message.text == "Исправить Фамилию":
+        elif message.text == text.CORRECT_LASTNAME:
             await UserProfileState.set_last_name.set()
             await message.answer(
-                "Ввведите правильную фамилию",
+                "Enter correct last name",
                 reply_markup=types.ReplyKeyboardRemove(),
+                parse_mode="Markdown",
             )
-        elif message.text == "Исправить номер телефона":
+        elif message.text == text.CORRECT_PHONE_NUMBER:
             await UserProfileState.set_mobile.set()
             await message.answer(
-                "Введите, правильный номер телефона в формате "
-                "+(код страны)(номер). Пример: +380684928465",
+                "Enter the correct telephone number in the format "
+                "+(country code)(number). _Example: +380684928465_",
                 reply_markup=types.ReplyKeyboardRemove(),
+                parse_mode="Markdown",
             )
-        elif message.text == "Исправить дату рождения":
+        elif message.text == text.CORRECT_BIRTHDAY:
             await UserProfileState.set_birth_day.set()
             await message.answer(
-                "Введите правильную дату рождения(формат: дд.мм.гггг)",
+                "Enter correct date of birth (format: dd.mm.yyyyy). "
+                "_Example: 03.08.2001_",
                 reply_markup=types.ReplyKeyboardRemove(),
+                parse_mode="Markdown",
             )
-        elif message.text == "Далее":
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add(
-                "Да",
-                "Исправить Имя",
-                "Исправить Фамилию",
-                "Исправить номер телефона",
-                "Исправить дату рождения",
-            )
+        elif message.text == text.NEXT:
             await message.answer(
-                f"И так, давайте перепроверим ваши данные. Вы "
-                f"{data['firstname']} {data['lastname']}. "
-                f"Ваш телефон: {data['phone']} "
-                f"Вы родились {data['birthday']}. Правильно?",
-                reply_markup=markup,
+                f"So, let's double-check your data. You "
+                f"*{data['firstname']} {data['lastname']}*. "
+                f"Your phone: *{data['phone']}* "
+                f"You were born *{data['birthday']}*. Right?",
+                reply_markup=keyboards.CHECK_PROFILE_WITH_YES,
+                parse_mode="Markdown",
             )
         else:
-            await message.reply(
-                "Я не знаю что вы ввели, но свяжитесь, пожалуйста, "
-                "с администратором. Это не должно было произойти"
-            )
+            await message.reply(text.PLEASE_USE_KEYBOARD)
 
 
 async def open_profile(message: types.Message, state: FSMContext):
@@ -251,24 +237,16 @@ async def open_profile(message: types.Message, state: FSMContext):
             data["phone"] = user.phone
             data["birthday"] = birthday
             await UserProfileState.check_data.set()
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add(
-                "Нет",
-                "Исправить Имя",
-                "Исправить Фамилию",
-                "Исправить номер телефона",
-                "Исправить дату рождения",
-            )
             await message.answer(
-                f"Вы {user.first_name} {user.last_name}. Ваш номер телефон: "
-                f"{user.phone}. Вы родились {birthday}. "
-                "Хотите что-нибудь поменять?",
-                reply_markup=markup,
+                f"You are *{user.first_name} {user.last_name}*. "
+                f"Your phone number:*{user.phone}*. "
+                f"You were born *{birthday}*. "
+                "Do you want to change anything?",
+                reply_markup=keyboards.CHECK_PROFILE_WITH_NO,
+                parse_mode="Markdown",
             )
         else:
             await message.answer(
-                "Вас заблокировали. Свяжитесь с тренером",
+                text.YOU_ARE_BLOCKED,
                 reply_markup=types.ReplyKeyboardRemove(),
             )

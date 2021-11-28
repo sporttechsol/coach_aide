@@ -10,7 +10,11 @@ from aiogram.dispatcher.filters.state import (
     StatesGroup,
 )
 
-from app import utils
+from app import (
+    keyboards,
+    text,
+    utils,
+)
 from app.flows.set_training_days import TrainingsDays
 from app.storage import (
     notification_tbl,
@@ -42,34 +46,41 @@ async def set_pay_notify_day(message: types.Message, state: FSMContext):
     try:
         day = int(message.text)
         if 1 > day or day > 31:
-            await message.reply("Введите число от 1 до 31")
+            await message.reply(
+                text.ENTER_ONE_OR_THIRTY_ONE,
+                reply_markup=keyboards.YES_OR_NO,
+                parse_mode="Markdown",
+            )
             return
 
     except ValueError:
-        await message.reply("Введите число от 1 до 31")
+        await message.reply(
+            text.ENTER_ONE_OR_THIRTY_ONE,
+            reply_markup=keyboards.YES_OR_NO,
+            parse_mode="Markdown",
+        )
         return
 
     async with state.proxy() as data:
         if "payday" in data:
             await PayDayState.check_data.set()
             data["payday"]["payday"] = day
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add("Далее")
             await message.reply(
-                "Перепроверьте обновлённые данные", reply_markup=markup
+                "Double-check updated data", reply_markup=keyboards.NEXT
             )
         else:
             data["payday"] = {}
             data["payday"]["payday"] = day
             await PayDayState.set_pay_time.set()
             await message.reply(
-                f"Сообщение об оплате будет отправляться каждый "
-                f"{data['payday']['payday']} день месяца"
+                f"A payment message will be sent every "
+                f"*{data['payday']['payday']}* day of the month",
+                parse_mode="Markdown",
             )
             await message.answer(
-                "В какое время нужно отправлять напоминания? Формат [чч:мм]"
+                "What time should reminders be sent? Format [hh:mm]. "
+                "_Example: 12:40_",
+                parse_mode="Markdown",
             )
 
 
@@ -77,15 +88,15 @@ async def set_pay_notify_time(message: types.Message, state: FSMContext):
     p = re.compile("[0-9][0-9]:[0-9][0-9]")
     pay_times = p.findall(message.text)
     if len(pay_times) > 1:
-        await message.reply(
-            "Множественный ввод. Пожалуста введите только одно время"
-        )
+        await message.reply("Multiple entry. Please, enter only one time")
         return
 
     if len(pay_times) == 0:
         await message.reply(
-            "Не удаёться прочитать время. "
-            "Пожалуйста, введите его в формате [чч:мм]"
+            "Can't read the time. "
+            "Please enter it in [hh:mm] format"
+            "_Example: 12:40_",
+            parse_mode="Markdown",
         )
         return
 
@@ -93,8 +104,9 @@ async def set_pay_notify_time(message: types.Message, state: FSMContext):
 
     if hours < 0 or hours > 23 or minutes < 0 or minutes > 59:
         await message.reply(
-            "Неправильный формат ввода. Часы должны быть от 0 до 23, "
-            "а минуты от 0 до 59. Примеры: 00:00"
+            "Incorrect input format. The hours should be *0 to 23*, "
+            "and the minutes are *0 to 59*. _Example: 00:00_",
+            parse_mode="Markdown",
         )
         return
 
@@ -103,13 +115,7 @@ async def set_pay_notify_time(message: types.Message, state: FSMContext):
             data["payday"]["hours"] = hours
             data["payday"]["minutes"] = minutes
             await PayDayState.check_data.set()
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add("Далее")
-            await message.reply(
-                "Перепроверьте обновлённые данные", reply_markup=markup
-            )
+            await message.reply(text.DOUBLE_CHECK, reply_markup=keyboards.NEXT)
 
         else:
             data["payday"]["hours"] = hours
@@ -119,12 +125,15 @@ async def set_pay_notify_time(message: types.Message, state: FSMContext):
                 data["payday"]["hours"], data["payday"]["minutes"]
             )
             await message.reply(
-                f"Сообщение об оплате будет отправляться каждый "
-                f"{data['payday']['payday']} день месяца в {time}"
+                f"A payment message will be sent every "
+                f"*{data['payday']['payday']}* day of the month at *{time}*",
+                parse_mode="Markdown",
             )
             await message.answer(
-                "Введите, пожалуйста сообщение, "
-                "которое будет отправляться игрокам. Укажите способ оплаты"
+                "Please enter the message, "
+                "which will be sent to the players. "
+                "*Specify the method of payment* 💰",
+                parse_mode="Markdown",
             )
 
 
@@ -133,41 +142,27 @@ async def set_pay_notify_text(message: types.Message, state: FSMContext):
         if "message" in data["payday"]:
             data["payday"]["message"] = message.text
             await PayDayState.check_data.set()
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add("Далее")
-            await message.reply(
-                "Перепроверьте обновлённые данные", reply_markup=markup
-            )
+            await message.reply(text.DOUBLE_CHECK, reply_markup=keyboards.NEXT)
 
         else:
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add(
-                "Да",
-                "Исправить день",
-                "Исправить время",
-                "Исправить сообщение",
-            )
             data["payday"]["message"] = message.text
             await PayDayState.check_data.set()
             time = utils.format_time(
                 data["payday"]["hours"], data["payday"]["minutes"]
             )
             await message.answer(
-                f"Сообщение об оплате будет отправляться каждый "
-                f"{data['payday']['payday']} день месяца в {time} \n"
-                f"Текст сообщения: {data['payday']['message']}  \n"
-                "Правильно?",
-                reply_markup=markup,
+                f"A payment message will be sent every "
+                f"*{data['payday']['payday']}* day of the month at *{time}*\n"
+                f"Message text: *{data['payday']['message']}*\n"
+                "Right?",
+                reply_markup=keyboards.CHECK_PAYDAY,
+                parse_mode="Markdown",
             )
 
 
 async def check_data(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        if message.text == "Да":
+        if message.text == text.YES:
             await schedule_dbl.create_payday_schedule(
                 user_id=message.from_user.id,
                 day=data["payday"]["payday"],
@@ -178,62 +173,55 @@ async def check_data(message: types.Message, state: FSMContext):
             await notification_tbl.create_new_payday_events()
             await state.reset_state()
             await message.answer(
-                "Отлично. Дата оповещения об оплате полностью настроена",
+                "Great. The date of the payment notification is fully set 🎉",
                 reply_markup=types.ReplyKeyboardRemove(),
             )
             if "trainings" not in data:
                 await TrainingsDays.set_training_count.set()
                 await message.answer(
-                    "Давайте перейдём к настройке оповещений о тренировках. "
-                    "Сколько будет тренировок в неделю?"
+                    "Let's move on to *setting up training alerts*. "
+                    "How many training sessions per week?",
+                    parse_mode="Markdown",
                 )
 
-        elif message.text == "Исправить день":
+        elif message.text == text.CORRECT_DAY:
             await PayDayState.set_pay_day.set()
             await message.answer(
-                "Ввведите день месяца в который оповещать об оплате "
-                "(число от 1 до 31)",
+                "Enter the day of the month on "
+                "which you want to be notified of payment "
+                "(*number from 1 to 31*)",
                 reply_markup=types.ReplyKeyboardRemove(),
+                parse_mode="Markdown",
             )
 
-        elif message.text == "Исправить время":
+        elif message.text == text.CORRECT_TIME:
             await PayDayState.set_pay_time.set()
             await message.answer(
-                "Ввведите время когда отправлять напоминание об оплате "
-                "(Формат чч:мм)",
+                "Enter the time when to send the payment reminder "
+                " (format *hh:mm*), _Example: 15:30_",
                 reply_markup=types.ReplyKeyboardRemove(),
+                parse_mode="Markdown",
             )
 
-        elif message.text == "Исправить сообщение":
+        elif message.text == text.CORRECT_MESSAGE:
             await PayDayState.set_pay_text.set()
             await message.answer(
-                "Введите текст сообщения об оплате",
+                "Enter new text for payment message",
                 reply_markup=types.ReplyKeyboardRemove(),
             )
 
-        elif message.text == "Далее":
-            markup = types.ReplyKeyboardMarkup(
-                resize_keyboard=True, selective=True
-            )
-            markup.add(
-                "Да",
-                "Исправить день",
-                "Исправить время",
-                "Исправить сообщение",
-            )
+        elif message.text == text.NEXT:
             time = utils.format_time(
                 data["payday"]["hours"], data["payday"]["minutes"]
             )
             await message.answer(
-                f"И так, давайте перепроверим ваши данные ещё раз, "
-                f"Сообщение об оплате будет отправляться каждый "
-                f"{data['payday']['payday']} день месяца в {time} \n"
-                f"Текст сообщения: {data['payday']['message']}  \n"
-                "Всё верно?",
-                reply_markup=markup,
+                f"So, let's double-check your details again,"
+                f"A payment message will be sent every "
+                f"*{data['payday']['payday']}* day of the month at *{time}*\n"
+                f"Message text: *{data['payday']['message']}*\n\n"
+                "*Is this correct?*",
+                reply_markup=keyboards.CHECK_PAYDAY,
+                parse_mode="Markdown",
             )
         else:
-            await message.reply(
-                "Я не знаю что вы ввели, но свяжитесь, пожалуйста, "
-                "с администратором. Это не должно было произойти."
-            )
+            await message.reply(text.PLEASE_USE_KEYBOARD)

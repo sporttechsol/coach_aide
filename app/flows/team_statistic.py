@@ -1,7 +1,10 @@
 import arrow
-from aiogram import Dispatcher, types
+from aiogram import Dispatcher
 
-from app import utils
+from app import (
+    keyboards,
+    utils,
+)
 from app.storage import (
     answer_tbl,
     notification_tbl,
@@ -58,19 +61,15 @@ async def do_send_message(dispatcher: Dispatcher):
 
     training_stats_str = "\n".join(training_stats)
     message = (
-        f"Статистика посещений за предыдущий месяц:\n\n"
+        f"Statistics for the previous month:\n\n"
         f"{training_stats_str}\n\n"
-        f"_Средняя посещаемость:_ *{round(team_mean, 2)}*"
+        f"_Average attendance:_ *{round(team_mean, 2)}*"
     )
     general_trainer = await user_tbl.get_general_trainer()
-    markup = types.ReplyKeyboardMarkup(
-        resize_keyboard=True, selective=True
-    )
-    markup.add("Профайл")
-    markup.add("Список игроков")
     await utils.send_message(
         dispatcher,
         general_trainer.user_id,
+        keyboard=keyboards.GENERAL_TRAINER_DEFAULT,
         text=message,
         parse_mode="Markdown",
     )
@@ -79,19 +78,15 @@ async def do_send_message(dispatcher: Dispatcher):
     for team_player in active_players:
         trainings_count = user_data.get(team_player.user_id, 0)
         if trainings_count >= team_mean:
-            result = "выше среднего. Ты молодец."
+            result = "above average. You're good 💪"
         else:
-            result = "ниже среднего. Тебе надо больше тренироваться."
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True, selective=True
-        )
-        markup.add("Профайл")
+            result = "below average. You need to practise more 🏋️"
         await utils.send_message(
             dispatcher,
             team_player.user_id,
-            text=f"За прошлый месяц ты был на тренировке "
-            f"*{trainings_count}* раз.\n"
-            f"Это {result}",
+            text=f"In the last month you have been in training "
+            f"*{trainings_count}* times.\n"
+            f"This is {result}",
             parse_mode="Markdown",
-            keyboard=markup
+            keyboard=keyboards.PLAYER_DEFAULT,
         )
